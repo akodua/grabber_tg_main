@@ -95,7 +95,7 @@ async def save_channel(channel_id, access_hash, channel_title):
         async with aiosqlite.connect('channels.db') as db:
             await db.execute(
                 '''
-                INSERT INTO channels (id, access_hash, title) 
+                INSERT INTO channels (id, access_hash, title)
                 VALUES (?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET access_hash=excluded.access_hash, title=excluded.title
                 ''',
@@ -120,7 +120,7 @@ async def set_destination_channel(channel_id, access_hash):
         async with aiosqlite.connect('channels.db') as db:
             await db.execute('DELETE FROM destination')  # Видалення попереднього каналу-приймача
             if channel_id and access_hash:
-                await db.execute('INSERT INTO destination (id, access_hash) VALUES (?, ?)', 
+                await db.execute('INSERT INTO destination (id, access_hash) VALUES (?, ?)',
                                  (channel_id, access_hash))
             await db.commit()
         if channel_id:
@@ -244,7 +244,7 @@ async def handle_message(message: types.Message):
         channels = await get_channels()
         if channels:
             buttons = [
-                types.InlineKeyboardButton(text=ch['title'], callback_data=f'delete_channel_{ch["id"]}') 
+                types.InlineKeyboardButton(text=ch['title'], callback_data=f'delete_channel_{ch["id"]}')
                 for ch in channels
             ]
             keyboard = types.InlineKeyboardMarkup(row_width=2)
@@ -612,7 +612,15 @@ async def my_event_handler(event):
         channels_list = [ch['id'] for ch in channels]
         logger.debug(f"Список каналів з бази даних: {channels_list}")
 
-        if event.chat_id not in channels_list:
+        # Нормалізація chat_id: видалення префіксу -100, якщо він є
+        normalized_chat_id = event.chat_id
+        if isinstance(normalized_chat_id, int) and normalized_chat_id < 0:
+            chat_id_str = str(normalized_chat_id)
+            if chat_id_str.startswith("-100"):
+                normalized_chat_id = int(chat_id_str[4:])
+                logger.debug(f"Нормалізований chat_id: {normalized_chat_id}")
+
+        if normalized_chat_id not in channels_list:
             logger.debug(f"Чат ID {event.chat_id} не знаходиться в списку відстежуваних каналів")
             return
 
